@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1f4e78">
+<meta name="description" content="상당구·오창 옥산 배달비 정산">
+<link rel="manifest" href="manifest.json">
+<title>배달비 정산</title>
+<style>
+*{box-sizing:border-box}body{font-family:system-ui,-apple-system,"Noto Sans KR",sans-serif;background:#f5f7fa;margin:0;color:#222}
+.wrap{max-width:520px;margin:auto;padding:16px}.card{background:#fff;border-radius:18px;padding:16px;margin-bottom:14px;box-shadow:0 2px 10px #0001}
+h1{font-size:24px;margin:4px 0 14px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+label{font-size:13px;font-weight:700;color:#555}input,select{width:100%;font-size:19px;padding:12px;border:1px solid #ddd;border-radius:12px;margin-top:6px}
+.stat{display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid #eee}.stat b{font-size:18px}.total{font-size:23px!important}
+.btn{width:100%;border:0;border-radius:14px;padding:15px;font-size:18px;font-weight:800;background:#1f4e78;color:#fff;margin-top:12px}
+.btn2{background:#eaf1f7;color:#1f4e78}.danger{background:#fce8e6;color:#b3261e}
+.tabs{display:flex;gap:8px;margin-bottom:12px}.tab{flex:1;padding:10px;border:0;border-radius:10px;font-weight:700;background:#e5e7eb}.tab.on{background:#1f4e78;color:white}
+.hidden{display:none}.small{font-size:12px;color:#777;line-height:1.5}
+table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:7px 4px;border-bottom:1px solid #eee;text-align:right}th:first-child,td:first-child{text-align:left}
+.install{display:none;background:#e2f0d9;border-radius:14px;padding:12px;margin-bottom:14px;font-weight:700}.install button{float:right;border:0;border-radius:9px;padding:7px 10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div id="installBox" class="install">📱 홈 화면에 설치할 수 있습니다.
+<button onclick="installApp()">설치</button></div>
+<div class="card">
+<h1>📱 배달비 정산</h1>
+<div class="tabs">
+<button class="tab on" id="t1" onclick="showTab('today')">오늘정산</button>
+<button class="tab" id="t2" onclick="showTab('history')">기록/월간</button>
+</div>
+
+<div id="today">
+<div class="grid">
+<div><label>날짜</label><input id="date" type="date"></div>
+<div><label>기사</label><select id="driver" onchange="calc()"><option>상당구</option><option>오창 옥산</option></select></div>
+</div>
+<div style="margin-top:12px"><label>배달 건수</label><input id="count" type="number" min="0" inputmode="numeric" placeholder="예: 35" oninput="calc()"></div>
+
+<div class="card" style="margin:14px 0 0;padding:10px">
+<div class="stat"><span>건당 배달료</span><b id="rate"></b></div>
+<div class="stat"><span>배달료 합계</span><b id="delivery"></b></div>
+<div class="stat"><span>유류비</span><b id="fuel"></b></div>
+<div class="stat"><span>총 지급액</span><b class="total" id="gross"></b></div>
+<div class="stat"><span>원천징수(3.3%)</span><b id="tax"></b></div>
+<div class="stat"><span>실지급액</span><b class="total" id="net"></b></div>
+</div>
+<button class="btn" onclick="saveRecord()">💾 오늘 정산 저장</button>
+<button class="btn btn2" onclick="clearForm()">새 정산 입력</button>
+<p class="small">정산 기록은 이 휴대폰의 앱 저장공간에 보관됩니다. 아래 백업 기능으로 주기적으로 보관하세요.</p>
+</div>
+
+<div id="history" class="hidden">
+<div class="card"><h2 style="margin-top:0">최근 정산</h2><div id="records"></div></div>
+<div class="card"><h2 style="margin-top:0">월간 집계</h2><div id="monthly"></div></div>
+<button class="btn btn2" onclick="backup()">📥 백업 파일 저장</button>
+<label class="btn btn2" style="display:block;text-align:center;margin-top:12px;cursor:pointer">
+📤 백업 복원<input type="file" accept=".json" onchange="restore(event)" style="display:none">
+</label>
+<button class="btn danger" onclick="clearAll()">전체 기록 삭제</button>
+</div>
+</div>
+
+<script>
+const RATE=3500,FUELS={"상당구":10000,"오창 옥산":15000},TAX=.033;
+const $=id=>document.getElementById(id);
+const won=n=>Math.round(n).toLocaleString("ko-KR")+"원";
+let records=JSON.parse(localStorage.getItem("deliveryRecords")||"[]");
+$("date").value=new Date().toISOString().slice(0,10);
+
+function calc(){
+ const c=Number($("count").value||0), f=FUELS[$("driver").value], gross=c*RATE+f, tax=gross*TAX;
+ $("rate").textContent=won(RATE); $("delivery").textContent=won(c*RATE);
+ $("fuel").textContent=won(f); $("gross").textContent=won(gross);
+ $("tax").textContent=won(tax); $("net").textContent=won(gross-tax);
+}
+function saveRecord(){
+ const c=Number($("count").value||0);
+ if(c<=0){alert("배달 건수를 입력해주세요.");return;}
+ const date=$("date").value,driver=$("driver").value,fuel=FUELS[driver],gross=c*RATE+fuel,tax=gross*TAX;
+ records.push({date,driver,count:c,fuel,gross,tax,net:gross-tax});
+ localStorage.setItem("deliveryRecords",JSON.stringify(records));
+ alert("정산이 저장되었습니다.");
+ clearForm(); render();
+}
+function clearForm(){
+ $("date").value=new Date().toISOString().slice(0,10); $("count").value=""; calc();
+}
+function render(){
+ const a=[...records].reverse();
+ $("records").innerHTML=a.length?
+ '<table><tr><th>날짜</th><th>기사</th><th>건수</th><th>실지급</th></tr>'+
+ a.slice(0,100).map(x=>`<tr><td>${x.date}</td><td>${x.driver}</td><td>${x.count}</td><td>${won(x.net)}</td></tr>`).join("")+
+ '</table>':'<p class="small">저장된 기록이 없습니다.</p>';
+
+ const map={};
+ records.forEach(x=>{
+  const k=x.date.slice(0,7)+"|"+x.driver;
+  if(!map[k])map[k]={m:x.date.slice(0,7),driver:x.driver,count:0,gross:0,net:0};
+  map[k].count+=x.count; map[k].gross+=x.gross; map[k].net+=x.net;
+ });
+ const rows=Object.values(map).sort((a,b)=>b.m.localeCompare(a.m)||a.driver.localeCompare(b.driver));
+ $("monthly").innerHTML=rows.length?
+ '<table><tr><th>월</th><th>기사</th><th>건수</th><th>총액</th><th>실지급</th></tr>'+
+ rows.map(x=>`<tr><td>${x.m}</td><td>${x.driver}</td><td>${x.count}</td><td>${won(x.gross)}</td><td>${won(x.net)}</td></tr>`).join("")+
+ '</table>':'<p class="small">저장된 기록이 없습니다.</p>';
+}
+function showTab(t){
+ $("today").classList.toggle("hidden",t!=="today");
+ $("history").classList.toggle("hidden",t!=="history");
+ $("t1").classList.toggle("on",t==="today"); $("t2").classList.toggle("on",t==="history");
+ if(t==="history")render();
+}
+function clearAll(){
+ if(confirm("모든 정산 기록을 삭제할까요?")){
+  records=[];localStorage.removeItem("deliveryRecords");render();
+ }
+}
+function backup(){
+ const blob=new Blob([JSON.stringify({exportedAt:new Date().toISOString(),records},null,2)],{type:"application/json"});
+ const a=document.createElement("a");a.href=URL.createObjectURL(blob);
+ a.download="배달비정산_백업_"+new Date().toISOString().slice(0,10)+".json";a.click();
+ setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+function restore(e){
+ const f=e.target.files[0];if(!f)return;
+ const r=new FileReader();
+ r.onload=()=>{
+  try{
+   const x=JSON.parse(r.result);if(!Array.isArray(x.records))throw new Error();
+   records=x.records;localStorage.setItem("deliveryRecords",JSON.stringify(records));render();
+   alert("복원이 완료되었습니다.");
+  }catch{alert("올바른 백업 파일이 아닙니다.");}
+ };
+ r.readAsText(f);
+}
+let deferredPrompt=null;
+window.addEventListener("beforeinstallprompt",e=>{
+ e.preventDefault();deferredPrompt=e;$("installBox").style.display="block";
+});
+async function installApp(){
+ if(!deferredPrompt){alert("Chrome 메뉴(⋮)에서 '홈 화면에 추가' 또는 '앱 설치'를 선택해주세요.");return;}
+ deferredPrompt.prompt();deferredPrompt=null;$("installBox").style.display="none";
+}
+if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
+calc();render();
+</script>
+</body>
+</html>
