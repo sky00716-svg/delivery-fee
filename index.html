@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1f4e78">
+<meta name="description" content="배달비 정산 앱">
+<link rel="manifest" href="manifest.json">
+<title>배달비 정산</title>
+<style>
+*{box-sizing:border-box}body{font-family:system-ui,-apple-system,"Noto Sans KR",sans-serif;background:#f5f7fa;margin:0;color:#222}
+.wrap{max-width:520px;margin:auto;padding:16px}.card{background:#fff;border-radius:18px;padding:16px;margin-bottom:14px;box-shadow:0 2px 10px #0001}
+h1{font-size:24px;margin:4px 0 14px}h2{font-size:19px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+label{font-size:13px;font-weight:700;color:#555}input,select{width:100%;font-size:19px;padding:12px;border:1px solid #ddd;border-radius:12px;margin-top:6px}
+.stat{display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid #eee}.stat b{font-size:18px}.total{font-size:23px!important}
+.btn{width:100%;border:0;border-radius:14px;padding:15px;font-size:18px;font-weight:800;background:#1f4e78;color:#fff;margin-top:12px}.btn2{background:#eaf1f7;color:#1f4e78}.danger{background:#fce8e6;color:#b3261e}
+.tabs{display:flex;gap:7px;margin-bottom:12px}.tab{flex:1;padding:10px 5px;border:0;border-radius:10px;font-weight:700;background:#e5e7eb}.tab.on{background:#1f4e78;color:white}
+.hidden{display:none}.small{font-size:12px;color:#777;line-height:1.5}.msg{padding:10px;border-radius:10px;background:#eaf1f7;margin-top:10px;font-size:13px}
+table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:7px 4px;border-bottom:1px solid #eee;text-align:right}th:first-child,td:first-child{text-align:left}.rowbtn{border:0;background:#eaf1f7;color:#1f4e78;border-radius:8px;padding:6px 8px;font-weight:700}.statementHead{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #222;padding-bottom:10px}.statementTotal{font-size:24px;font-weight:900}.shareNote{background:#f5f7fa;padding:10px;border-radius:10px;font-size:12px;color:#666}@media print{body{background:#fff}.wrap{max-width:none;padding:0}.card:not(#statementResult){display:none!important}#statementResult{display:block!important;box-shadow:none;margin:0;padding:0}.tabs,h1,#updateBox{display:none!important}.printHide{display:none!important}.statementPrint{font-size:13px}.statementPrint table{font-size:12px}}.modal{position:fixed;inset:0;background:#0008;display:none;align-items:flex-end;justify-content:center;z-index:20}.modalBox{background:#fff;width:100%;max-width:520px;border-radius:22px 22px 0 0;padding:18px;max-height:90vh;overflow:auto}.modalActions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.update{display:none;background:#e2f0d9;border-radius:14px;padding:12px;margin-bottom:14px;font-weight:700}.update button{float:right;border:0;border-radius:9px;padding:7px 10px}
+</style>
+</head>
+<body><div class="wrap">
+<div id="updateBox" class="update">🔄 새 버전이 준비됐습니다. <button onclick="applyUpdate()">업데이트</button></div>
+<div class="card">
+<h1>📱 배달비 정산</h1>
+<div class="tabs">
+<button class="tab on" id="t1" onclick="showTab('today')">오늘정산</button>
+<button class="tab" id="t2" onclick="showTab('history')">기록/월간</button>
+<button class="tab" id="t3" onclick="showTab('statement')">🧾 정산서</button><button class="tab" id="t4" onclick="showTab('settings')">⚙️ 설정</button>
+</div>
+
+<div id="today">
+<div class="grid"><div><label>날짜</label><input id="date" type="date"></div>
+<div><label>기사</label><select id="driver" onchange="calc()"><option>상당구</option><option>오창 옥산</option></select></div></div>
+<div style="margin-top:12px"><label>배달 건수</label><input id="count" type="number" min="0" inputmode="numeric" placeholder="예: 35" oninput="calc()"></div>
+<div class="card" style="margin:14px 0 0;padding:10px">
+<div class="stat"><span>건당 배달료</span><b id="rate"></b></div><div class="stat"><span>배달료 합계</span><b id="delivery"></b></div>
+<div class="stat"><span>유류비</span><b id="fuel"></b></div><div class="stat"><span>총 지급액</span><b class="total" id="gross"></b></div>
+<div class="stat"><span>원천징수</span><b id="tax"></b></div><div class="stat"><span>실지급액</span><b class="total" id="net"></b></div>
+</div>
+<button class="btn" onclick="saveRecord()">💾 오늘 정산 저장</button><button class="btn btn2" onclick="clearForm()">새 정산 입력</button>
+<p class="small">저장 당시의 단가·유류비·원천징수율을 기록하므로 이후 설정을 바꿔도 과거 정산은 변하지 않습니다.</p>
+</div>
+
+<div id="history" class="hidden">
+<div class="card"><h2>최근 정산</h2><div id="records"></div></div>
+<div class="card"><h2>월간 집계</h2><div id="monthly"></div></div>
+<button class="btn btn2" onclick="backup()">📥 백업 파일 저장</button>
+<label class="btn btn2" style="display:block;text-align:center;margin-top:12px;cursor:pointer">📤 백업 복원<input type="file" accept=".json" onchange="restore(event)" style="display:none"></label>
+<button class="btn danger" onclick="clearAll()">전체 기록 삭제</button>
+</div>
+
+<div id="editModal" class="modal" onclick="if(event.target===this)closeEdit()"><div class="modalBox"><h2 style="margin-top:0">✏️ 정산 수정</h2><input type="hidden" id="editId"><label>날짜<input id="editDate" type="date"></label><div style="height:10px"></div><label>기사<select id="editDriver"><option>상당구</option><option>오창 옥산</option></select></label><div style="height:10px"></div><label>배달 건수<input id="editCount" type="number" min="0" inputmode="numeric"></label><p class="small">수정 저장 시 현재 설정된 배달료·유류비·원천징수율로 다시 계산됩니다.</p><div class="modalActions"><button class="btn btn2" onclick="closeEdit()">취소</button><button class="btn" onclick="updateRecord()">💾 수정 저장</button></div><button class="btn danger" onclick="deleteRecord()">🗑️ 이 정산 삭제</button></div></div><div id="statement" class="hidden"><div class="card"><h2>🧾 월말 기사별 정산서</h2><p class="small">월과 기사를 선택하면 해당 기간의 정산내역을 한 장으로 정리합니다.</p><div class="grid"><div><label>정산 월<input id="stmtMonth" type="month"></label></div><div><label>기사<select id="stmtDriver"><option>상당구</option><option>오창 옥산</option></select></label></div></div><button class="btn" onclick="makeStatement()">📄 정산서 만들기</button></div><div id="statementResult" class="card hidden"></div></div><div id="settings" class="hidden">
+<div class="card"><h2>⚙️ 정산 설정</h2>
+<p class="small">변경 후 <b>새로 저장하는 정산부터</b> 적용됩니다. 기존 정산은 그대로 유지됩니다.</p>
+<label>건당 배달료<input id="setRate" type="number" min="0"></label><div style="height:10px"></div>
+<label>상당구 유류비<input id="setSangdang" type="number" min="0"></label><div style="height:10px"></div>
+<label>오창 옥산 유류비<input id="setOchang" type="number" min="0"></label><div style="height:10px"></div>
+<label>원천징수율(%)<input id="setTax" type="number" min="0" step="0.1"></label>
+<button class="btn" onclick="saveSettings()">💾 설정 저장</button><button class="btn btn2" onclick="resetSettings()">기본값으로 되돌리기</button>
+<div id="settingsMsg" class="msg hidden"></div>
+</div>
+<div class="card"><h2>☁️ 백업 안내</h2>
+<p class="small">백업 버튼은 안전한 JSON 백업 파일을 만듭니다. 현재 버전은 Google 계정 인증 정보가 없는 상태에서 임의로 Drive에 접근하지 않도록 설계되어 있습니다. Google Drive 자동 저장을 연결하려면 Google OAuth 설정이 한 번 필요합니다.</p>
+<button class="btn btn2" onclick="backup()">📥 지금 백업 파일 만들기</button>
+</div>
+<div class="card"><h2>ℹ️ 앱 정보</h2><p class="small">데이터는 기기의 저장공간에 유지되며 앱 버전이 바뀌어도 동일한 저장 키를 사용해 기존 기록을 유지합니다. 업데이트 후 기록이 보이지 않을 경우 백업 파일로 복원하세요.</p></div>
+</div>
+</div>
+
+<script>
+const DEFAULTS={rate:3500,fuelSangdang:10000,fuelOchang:15000,taxRate:.033};
+const $=id=>document.getElementById(id),won=n=>Math.round(n).toLocaleString("ko-KR")+"원";
+let settings=JSON.parse(localStorage.getItem("deliverySettings")||"null")||{...DEFAULTS};
+let records=JSON.parse(localStorage.getItem("deliveryRecords")||"[]");
+$("date").value=new Date().toISOString().slice(0,10);
+
+function fuelFor(d){return d==="상당구"?Number(settings.fuelSangdang):Number(settings.fuelOchang)}
+function calc(){let c=Number($("count").value||0),f=fuelFor($("driver").value),g=c*settings.rate+f,t=g*settings.taxRate;
+$("rate").textContent=won(settings.rate);$("delivery").textContent=won(c*settings.rate);$("fuel").textContent=won(f);$("gross").textContent=won(g);$("tax").textContent=won(t);$("net").textContent=won(g-t)}
+function saveRecord(){let c=Number($("count").value||0);if(c<=0)return alert("배달 건수를 입력해주세요.");
+let date=$("date").value,driver=$("driver").value,fuel=fuelFor(driver),gross=c*settings.rate+fuel,tax=gross*settings.taxRate;
+records.push({id:Date.now(),date,driver,count:c,rate:Number(settings.rate),fuel,taxRate:Number(settings.taxRate),gross,tax,net:gross-tax});
+localStorage.setItem("deliveryRecords",JSON.stringify(records));alert("정산이 저장되었습니다.");clearForm();render()}
+function clearForm(){$("date").value=new Date().toISOString().slice(0,10);$("count").value="";calc()}
+function render(){let a=[...records].reverse();$("records").innerHTML=a.length?'<table><tr><th>날짜</th><th>기사</th><th>건수</th><th>실지급</th><th>관리</th></tr>'+a.slice(0,100).map(x=>`<tr><td>${x.date}</td><td>${x.driver}</td><td>${x.count}</td><td>${won(x.net)}</td><td><button class="rowbtn" onclick="openEdit(${x.id})">수정</button></td></tr>`).join("")+'</table>':'<p class="small">저장된 기록이 없습니다.</p>';
+let map={};records.forEach(x=>{let k=x.date.slice(0,7)+"|"+x.driver;if(!map[k])map[k]={m:x.date.slice(0,7),driver:x.driver,count:0,gross:0,net:0};map[k].count+=Number(x.count);map[k].gross+=Number(x.gross);map[k].net+=Number(x.net)});
+let rows=Object.values(map).sort((a,b)=>b.m.localeCompare(a.m)||a.driver.localeCompare(b.driver));
+$("monthly").innerHTML=rows.length?'<table><tr><th>월</th><th>기사</th><th>건수</th><th>총액</th><th>실지급</th></tr>'+rows.map(x=>`<tr><td>${x.m}</td><td>${x.driver}</td><td>${x.count}</td><td>${won(x.gross)}</td><td>${won(x.net)}</td></tr>`).join("")+'</table>':'<p class="small">저장된 기록이 없습니다.</p>'}
+function showTab(t){["today","history","statement","settings"].forEach(x=>$(x).classList.toggle("hidden",x!==t));["t1","t2","t3","t4"].forEach((x,i)=>$(x).classList.toggle("on",["today","history","statement","settings"][i]===t));if(t==="history")render();if(t==="statement"){if(!$("stmtMonth").value)$("stmtMonth").value=new Date().toISOString().slice(0,7);makeStatement();}if(t==="settings")loadSettings()}
+function loadSettings(){$("setRate").value=settings.rate;$("setSangdang").value=settings.fuelSangdang;$("setOchang").value=settings.fuelOchang;$("setTax").value=(settings.taxRate*100).toFixed(1)}
+function saveSettings(){let rate=Number($("setRate").value),fs=Number($("setSangdang").value),fo=Number($("setOchang").value),tax=Number($("setTax").value)/100;if(![rate,fs,fo,tax].every(Number.isFinite)||rate<0||fs<0||fo<0||tax<0)return alert("설정값을 올바르게 입력해주세요.");settings={rate,fuelSangdang:fs,fuelOchang:fo,taxRate:tax};localStorage.setItem("deliverySettings",JSON.stringify(settings));$("settingsMsg").textContent="저장되었습니다. 새 정산부터 적용됩니다."; $("settingsMsg").classList.remove("hidden");calc()}
+function resetSettings(){if(confirm("기본값으로 되돌릴까요?")){settings={...DEFAULTS};localStorage.setItem("deliverySettings",JSON.stringify(settings));loadSettings();calc()}}
+function openEdit(id){const x=records.find(r=>Number(r.id)===Number(id));if(!x)return;$("editId").value=x.id;$("editDate").value=x.date;$("editDriver").value=x.driver;$("editCount").value=x.count;$("editModal").style.display="flex"}function closeEdit(){$("editModal").style.display="none"}function updateRecord(){const id=Number($("editId").value),c=Number($("editCount").value||0);if(c<=0)return alert("배달 건수를 1건 이상 입력해주세요.");const x=records.find(r=>Number(r.id)===id);if(!x)return;const date=$("editDate").value,driver=$("editDriver").value,fuel=fuelFor(driver),gross=c*settings.rate+fuel,tax=gross*settings.taxRate;Object.assign(x,{date,driver,count:c,rate:Number(settings.rate),fuel,taxRate:Number(settings.taxRate),gross,tax,net:gross-tax});localStorage.setItem("deliveryRecords",JSON.stringify(records));closeEdit();render();alert("정산 내용이 수정되었습니다.")}function deleteRecord(){const id=Number($("editId").value),x=records.find(r=>Number(r.id)===id);if(!x)return;if(confirm(`${x.date} / ${x.driver} / ${x.count}건 정산을 삭제할까요?`)){records=records.filter(r=>Number(r.id)!==id);localStorage.setItem("deliveryRecords",JSON.stringify(records));closeEdit();render()}}function makeStatement(){const month=$("stmtMonth").value,driver=$("stmtDriver").value;if(!month)return;const rows=records.filter(x=>x.date.slice(0,7)===month&&x.driver===driver).sort((a,b)=>a.date.localeCompare(b.date));const count=rows.reduce((s,x)=>s+Number(x.count),0),gross=rows.reduce((s,x)=>s+Number(x.gross),0),tax=rows.reduce((s,x)=>s+Number(x.tax),0),net=rows.reduce((s,x)=>s+Number(x.net),0),fuel=rows.reduce((s,x)=>s+Number(x.fuel),0);const title=month.replace("-","년 ")+"월";$("statementResult").classList.remove("hidden");$("statementResult").innerHTML=`<div class="statementPrint"><div class="statementHead"><div><h2 style="margin:0">배달 기사 정산서</h2><div class="small">${title} · ${driver}</div></div><div class="statementTotal">${won(net)}</div></div><table style="margin-top:14px"><tr><th>날짜</th><th>건수</th><th>배달료</th><th>유류비</th><th>총액</th><th>공제</th><th>실지급</th></tr>${rows.length?rows.map(x=>`<tr><td>${x.date}</td><td>${x.count}</td><td>${won(x.count*x.rate)}</td><td>${won(x.fuel)}</td><td>${won(x.gross)}</td><td>${won(x.tax)}</td><td>${won(x.net)}</td></tr>`).join(""):'<tr><td colspan="7" style="text-align:center">해당 월 정산 기록이 없습니다.</td></tr>'}</table><div style="margin-top:14px"><div class="stat"><span>총 배달 건수</span><b>${count}건</b></div><div class="stat"><span>배달료 합계</span><b>${won(gross-fuel)}</b></div><div class="stat"><span>유류비 합계</span><b>${won(fuel)}</b></div><div class="stat"><span>총 지급액</span><b>${won(gross)}</b></div><div class="stat"><span>원천징수</span><b>${won(tax)}</b></div><div class="stat"><span>실지급액</span><b class="total">${won(net)}</b></div></div></div><div class="printHide"><button class="btn" onclick="window.print()">🖨️ 정산서 인쇄 / PDF 저장</button><button class="btn btn2" onclick="shareStatement()">📤 카톡 등으로 보내기</button><div class="shareNote">휴대폰에서는 공유 화면에서 카카오톡을 선택할 수 있습니다.</div></div>`}async function shareStatement(){const month=$("stmtMonth").value,driver=$("stmtDriver").value,rows=records.filter(x=>x.date.slice(0,7)===month&&x.driver===driver),count=rows.reduce((s,x)=>s+Number(x.count),0),gross=rows.reduce((s,x)=>s+Number(x.gross),0),tax=rows.reduce((s,x)=>s+Number(x.tax),0),net=rows.reduce((s,x)=>s+Number(x.net),0),fuel=rows.reduce((s,x)=>s+Number(x.fuel),0);const text=`[배달 기사 월말 정산서]\n정산월: ${month}\n기사: ${driver}\n총 배달: ${count}건\n배달료: ${won(gross-fuel)}\n유류비: ${won(fuel)}\n총 지급액: ${won(gross)}\n원천징수: ${won(tax)}\n실지급액: ${won(net)}`;if(navigator.share){try{await navigator.share({title:`${month} ${driver} 배달 정산서`,text})}catch(e){}}else{await navigator.clipboard?.writeText(text);alert("정산 내용이 클립보드에 복사되었습니다. 카카오톡에 붙여넣어 보내세요.")}}function clearAll(){if(confirm("모든 정산 기록을 삭제할까요?")){records=[];localStorage.removeItem("deliveryRecords");render()}}
+function backup(){let data={version:3,exportedAt:new Date().toISOString(),settings,records};let blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});let a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="배달비정산_백업_"+new Date().toISOString().slice(0,10)+".json";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+function restore(e){let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let x=JSON.parse(r.result);if(!Array.isArray(x.records))throw 0;records=x.records;if(x.settings)settings={...DEFAULTS,...x.settings};localStorage.setItem("deliveryRecords",JSON.stringify(records));localStorage.setItem("deliverySettings",JSON.stringify(settings));loadSettings();calc();render();alert("백업 복원이 완료되었습니다.")}catch{alert("올바른 백업 파일이 아닙니다.")}};r.readAsText(f)}
+let pendingWorker=null;
+if("serviceWorker"in navigator){
+ navigator.serviceWorker.register("sw.js").then(reg=>{
+  reg.update();
+  reg.addEventListener("updatefound",()=>{let w=reg.installing;w.addEventListener("statechange",()=>{if(w.state==="installed"&&navigator.serviceWorker.controller){pendingWorker=w;$("updateBox").style.display="block"}})});
+ });
+}
+function applyUpdate(){if(pendingWorker)pendingWorker.postMessage({type:"SKIP_WAITING"});else location.reload()}
+navigator.serviceWorker?.addEventListener("controllerchange",()=>location.reload());
+calc();render();
+</script>
+</body></html>
